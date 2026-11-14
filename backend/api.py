@@ -1449,6 +1449,59 @@ async def get_contact_profile():
         return jsonify({"success": False, "message": f"Request handling failed: {str(e)}"}), 500
 
 
+@app.route("/api/contact_style", methods=["POST"])
+async def save_contact_style():
+    from pydantic import ValidationError
+    data = await request.get_json(silent=True)
+    if not isinstance(data, dict) or not str(data.get("chat_id") or "").strip() or "style" not in data:
+        return jsonify({"success": False, "message": "chat_id and style (object or null) are required"}), 400
+    try:
+        memory = manager.get_memory_manager()
+        profile = await memory.save_contact_style(str(data["chat_id"]).strip(), data["style"])
+        return jsonify({"success": True, "profile": profile})
+    except ValidationError:
+        return jsonify({"success": False, "message": "Invalid personal style fields"}), 400
+    except Exception:
+        logger.error("Contact style persistence failed")
+        return jsonify({"success": False, "message": "Contact style persistence failed"}), 500
+
+
+@app.route("/api/scheduled_messages", methods=["GET", "POST", "DELETE"])
+async def scheduled_messages():
+    from .core.scheduled_messages import task_store
+    from .core.storage import pin_restart_settings
+    config = pin_restart_settings(manager, manager.config_service.get_snapshot(config_path=manager.config_path).bot)
+    data = await request.get_json(silent=True) if request.method != "GET" else {}
+    if request.method != "GET" and not isinstance(data, dict):
+        return jsonify({"success": False, "message": "JSON object required"}), 400
+    if request.method == "POST" and not config.get("scheduled_messages_enabled", False):
+        return jsonify({"success": False, "message": "Scheduled messages are disabled"}), 409
+
+    def operation():
+        store = task_store(config)
+        try:
+            if request_method == "GET":
+                return {"success": True, "tasks": store.list()}
+            if request_method == "DELETE":
+                return {"success": store.cancel(str(data.get("id") or ""))}
+            ident = store.add(
+                target=str(data.get("target") or ""), content=str(data.get("content") or ""),
+                due_at=data.get("due_at"), task_id=data.get("id"),
+                allowed_targets=config.get("scheduled_message_targets", []),
+            )
+            return {"success": True, "id": ident}
+        finally:
+            store.close()
+    request_method = request.method
+    try:
+        return jsonify(await asyncio.to_thread(operation))
+    except ValueError:
+        return jsonify({"success": False, "message": "Invalid task, allowlist, or infrastructure configuration"}), 400
+    except Exception:
+        logger.error("Scheduled message persistence failed")
+        return jsonify({"success": False, "message": "Scheduled message persistence failed"}), 503
+
+
 @app.route("/api/contact_prompt", methods=["POST"])
 async def save_contact_prompt():
     """Endpoint handler."""

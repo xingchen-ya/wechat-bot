@@ -69,8 +69,10 @@ class Connection:
         return Query(self, statement, params)
 
     async def executemany(self, statement, parameters):
-        for params in parameters:
-            await self.execute(statement, params)
+        def run_batch():
+            with self.lock, self.connection.cursor() as cursor:
+                cursor.executemany(postgres_sql(statement), parameters)
+        await asyncio.to_thread(run_batch)
 
     def run(self, statement, params):
         if statement.startswith("PRAGMA"):
@@ -96,10 +98,10 @@ class PostgresMemoryManager(MemoryManager):
         self.db_path = "postgresql"  # safe diagnostic label, not a DSN or local path
 
     async def _get_db(self):
-        if self._conn:
+        if self._conn and not self._conn.connection.closed:
             return self._conn
         async with self._init_lock:
-            if not self._conn:
+            if not self._conn or self._conn.connection.closed:
                 import psycopg
                 raw = await asyncio.to_thread(psycopg.connect, self._url, autocommit=True, connect_timeout=10)
                 self._conn = Connection(raw)

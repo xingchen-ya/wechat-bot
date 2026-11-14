@@ -1,11 +1,7 @@
-import sys
-import types
 import pytest
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch, AsyncMock, ANY
-
-sys.modules.setdefault("aiosqlite", types.SimpleNamespace())
 
 from backend.bot import WeChatBot
 from backend.bot_event_flow import build_incoming_broadcast_payload
@@ -71,6 +67,18 @@ def _build_pending_reply_memory():
 
 def test_bot_schema_allows_zero_reply_deadline():
     assert BotConfig(reply_deadline_sec=0).reply_deadline_sec == 0
+
+
+@pytest.mark.asyncio
+async def test_scheduled_sender_initialization_failure_cleans_up():
+    bot = WeChatBot("config.yaml")
+    bot.bot_cfg = {"scheduled_messages_enabled": True}
+    bot.initialize = AsyncMock(return_value=MagicMock())
+    bot.shutdown = AsyncMock()
+    with patch("backend.core.scheduled_messages.create_sender", new=AsyncMock(side_effect=ValueError("synthetic configuration failure"))):
+        with pytest.raises(ValueError):
+            await bot.run()
+    bot.shutdown.assert_awaited_once()
 
 @pytest.mark.asyncio
 async def test_bot_initialization(mock_config):
@@ -143,8 +151,8 @@ async def test_bot_initialization_vector_memory_error(mock_config):
             bot = WeChatBot("config.yaml")
             bot.memory = _build_pending_reply_memory()
             
-            # Mock VectorMemory to raise exception
-            with patch("backend.bot.VectorMemory", side_effect=Exception("VectorDB failed")):
+            # Mock the storage selection boundary to raise an initialization error.
+            with patch("backend.bot.create_vectors", side_effect=Exception("VectorDB failed")):
                 with patch("backend.bot.select_ai_client", return_value=(AsyncMock(), "default")):
                     with patch("backend.bot.reconnect_wechat", return_value=MagicMock()):
                         await bot.initialize()
@@ -282,7 +290,7 @@ async def test_reload_runtime_config_refreshes_watcher_for_non_ai_changes():
     bot.api_signature = "same-signature"
     bot.runtime_preset_name = "Ollama"
     bot._ensure_config_reload_watcher = MagicMock()
-    bot._ensure_vector_memory = MagicMock()
+    bot._ensure_vector_memory = AsyncMock()
     bot._schedule_export_rag_sync = AsyncMock()
 
     new_config = {
@@ -329,7 +337,7 @@ async def test_reload_runtime_config_honors_reload_ai_client_module():
     bot.api_signature = "same-signature"
     bot.runtime_preset_name = "Ollama"
     bot._ensure_config_reload_watcher = MagicMock()
-    bot._ensure_vector_memory = MagicMock()
+    bot._ensure_vector_memory = AsyncMock()
     bot._schedule_export_rag_sync = AsyncMock()
     bot.ai_client = AsyncMock()
     new_client = AsyncMock()
@@ -391,7 +399,7 @@ async def test_check_config_reload_clears_issue_after_successful_ai_reload():
     bot.api_signature = "old-signature"
     bot.runtime_preset_name = "root_config"
     bot._ensure_config_reload_watcher = MagicMock()
-    bot._ensure_vector_memory = MagicMock()
+    bot._ensure_vector_memory = AsyncMock()
     bot._schedule_export_rag_sync = AsyncMock()
     old_client = SimpleNamespace(close=AsyncMock())
     new_client = AsyncMock()
@@ -448,7 +456,7 @@ async def test_reload_runtime_config_reconnects_transport_for_transport_changes(
     bot.api_signature = "same-signature"
     bot.runtime_preset_name = "Ollama"
     bot._ensure_config_reload_watcher = MagicMock()
-    bot._ensure_vector_memory = MagicMock()
+    bot._ensure_vector_memory = AsyncMock()
     bot._schedule_export_rag_sync = AsyncMock()
     bot.wx = MagicMock()
     new_wx = MagicMock()
@@ -521,7 +529,7 @@ async def test_reload_runtime_config_without_new_config_uses_config_service_relo
     bot.api_signature = "same-signature"
     bot.runtime_preset_name = "Ollama"
     bot._ensure_config_reload_watcher = MagicMock()
-    bot._ensure_vector_memory = MagicMock()
+    bot._ensure_vector_memory = AsyncMock()
     bot._schedule_export_rag_sync = AsyncMock()
 
     with patch("backend.bot.compute_api_signature", return_value="same-signature"), \

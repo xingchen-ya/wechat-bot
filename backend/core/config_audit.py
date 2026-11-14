@@ -12,6 +12,11 @@ from backend.config_schemas import AgentConfig, ApiConfig, BotConfig, LoggingCon
 DORMANT_CONFIG_PATHS: set[str] = set()
 
 _EXACT_EFFECTS: Dict[str, Dict[str, str]] = {
+    **{f"bot.{field}": {"mode": "restart", "component": "infrastructure",
+        "note": "完整重启后端进程后生效；存储切换必须先完成离线迁移"}
+       for field in ("storage_backend", "database_url_env", "embedding_dimensions", "scheduled_messages_enabled", "redis_url_env")},
+    "bot.rag_retriever_backend": {"mode": "live", "component": "rag", "note": "下次检索时生效；LangChain 需安装可选依赖"},
+    "bot.scheduled_message_targets": {"mode": "live", "component": "scheduled_sender", "note": "下一次任务领取前校验发送白名单"},
     "bot.config_reload_mode": {
         "mode": "live",
         "component": "config_watcher",

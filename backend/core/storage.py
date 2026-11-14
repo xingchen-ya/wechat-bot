@@ -1,6 +1,19 @@
 """Storage selection. Secrets live in environment variables, never app_config.json."""
 import os
 
+RESTART_SETTINGS = ("storage_backend", "database_url_env", "embedding_dimensions", "redis_url_env")
+
+
+def pin_restart_settings(owner, config):
+    """Keep a running component on one storage generation until process restart."""
+    result = dict(config)
+    if not isinstance(getattr(owner, "_storage_settings", None), dict):
+        owner._storage_settings = {key: result[key] for key in RESTART_SETTINGS if key in result}
+    for key in RESTART_SETTINGS:
+        result.pop(key, None)
+    result.update(owner._storage_settings)
+    return result
+
 
 def database_url(config):
     if config.get("storage_backend", "sqlite") == "sqlite":

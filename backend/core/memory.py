@@ -333,6 +333,15 @@ class MemoryManager:
             likes = preferences.get("likes") or []
             dislikes = preferences.get("dislikes") or []
             style = str(preferences.get("style") or "").strip()
+            personal_style = preferences.get("personal_style")
+            if isinstance(personal_style, dict):
+                from .contact_style import PersonalStyle
+                try:
+                    expression = PersonalStyle.model_validate(personal_style).summary()
+                except ValueError:
+                    expression = ""
+                if expression:
+                    summary_parts.append("用户设定表达偏好: " + expression)
 
             topic_text = "、".join(str(item).strip() for item in topics if str(item).strip())
             like_text = "、".join(str(item).strip() for item in likes if str(item).strip())
@@ -1249,6 +1258,8 @@ class MemoryManager:
             "wx_id": profile.wx_id,
             "nickname": profile.nickname,
             "relationship": profile.relationship,
+            "personality": profile.personality,
+            "preferences": copy.deepcopy(profile.preferences),
             "message_count": profile.message_count,
             "last_emotion": profile.last_emotion,
             "profile_summary": profile.profile_summary or self._build_profile_summary(
@@ -1417,6 +1428,8 @@ class MemoryManager:
             "chat_id": profile.wx_id,
             "nickname": profile.nickname,
             "relationship": profile.relationship,
+            "personality": profile.personality,
+            "preferences": copy.deepcopy(profile.preferences),
             "message_count": int(profile.message_count or 0),
             "last_emotion": profile.last_emotion,
             "profile_summary": profile.profile_summary or self._build_profile_summary(
@@ -1429,6 +1442,18 @@ class MemoryManager:
             "contact_prompt_last_message_count": int(profile.contact_prompt_last_message_count or 0),
             "updated_at": int(profile.updated_at or 0),
         }
+
+    async def save_contact_style(self, wx_id: str, style: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        from .contact_style import PersonalStyle
+        normalized = PersonalStyle.model_validate(style).model_dump() if style is not None else None
+        profile = await self.get_user_profile(wx_id)
+        preferences = copy.deepcopy(profile.preferences)
+        if normalized is None:
+            preferences.pop("personal_style", None)
+        else:
+            preferences["personal_style"] = normalized
+        await self.update_user_profile(wx_id, preferences=preferences)
+        return await self.get_contact_profile(wx_id)
 
     async def save_contact_prompt(
         self,

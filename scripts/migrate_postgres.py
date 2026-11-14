@@ -7,12 +7,13 @@ transaction; original SQLite files are never changed or removed.
 """
 import argparse
 import asyncio
-from contextlib import ExitStack
+from contextlib import ExitStack, closing
 import hashlib
 import json
 import os
 from pathlib import Path
 import sqlite3
+import struct
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -34,12 +35,31 @@ def source_tables(source, allowed):
     return sorted(tables)
 
 
-def digest(rows):
-    checksum = hashlib.sha256()
+def update_checksum(checksum, rows):
     for row in rows:
         checksum.update(json.dumps(list(row), ensure_ascii=False, separators=(",", ":")).encode())
         checksum.update(b"\n")
-    return checksum.hexdigest()
+
+
+def vector_values(row, dimensions):
+    from backend.core.postgres_vectors import serialize_embedding
+    meta = json.loads(row["metadata"])
+    for key in ("source", "chat_id", "doc_id"):
+        if key in row.keys() and row[key] is not None:
+            if key in meta and meta[key] != row[key]:
+                raise ValueError("Conflicting vector metadata; resolve the source before migration")
+            meta[key] = row[key]
+    embedding = serialize_embedding(json.loads(row["embedding"]), dimensions) if row["embedding"] else None
+    return (row["id"], row["text"], json.dumps(meta, ensure_ascii=False, sort_keys=True), embedding)
+
+
+def canonical_vectors(items):
+    # pgvector stores float32; compare at that precision, without losing JSON fields.
+    for ident, text, meta, emb in items:
+        meta = json.loads(meta) if isinstance(meta, str) else meta
+        emb = json.loads(emb) if isinstance(emb, str) else emb
+        yield (ident, text, json.dumps(meta, ensure_ascii=False, sort_keys=True),
+               [struct.unpack("f", struct.pack("f", float(x)))[0] for x in emb] if emb else None)
 
 
 def migrate(memory_path, vector_path=None, *, apply=False, dimensions=1536):
@@ -49,9 +69,9 @@ def migrate(memory_path, vector_path=None, *, apply=False, dimensions=1536):
     import psycopg
 
     with ExitStack() as stack:
-        sources = [(stack.enter_context(open_source(memory_path)), MEMORY_TABLES)]
+        sources = [(stack.enter_context(closing(open_source(memory_path))), MEMORY_TABLES)]
         if vector_path:
-            sources.append((stack.enter_context(open_source(vector_path)), ("vectors",)))
+            sources.append((stack.enter_context(closing(open_source(vector_path))), ("vectors",)))
         inventories = [(source, source_tables(source, allowed)) for source, allowed in sources]
         counts = {table: source.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]
                   for source, tables in inventories for table in tables}
@@ -90,39 +110,25 @@ def migrate(memory_path, vector_path=None, *, apply=False, dimensions=1536):
                     elif set(columns) - target_columns:
                         raise ValueError("Unknown memory columns; refusing lossy import")
                     order = "id" if "id" in columns else "wx_id" if "wx_id" in columns else "chat_id,task_type"
-                    rows = source.execute(f'SELECT * FROM "{table}" ORDER BY {order}').fetchall()
-                    if table == "vectors":
-                        converted = []
-                        for row in rows:
-                            meta = json.loads(row["metadata"])
-                            for key in ("source", "chat_id", "doc_id"):
-                                if key in row.keys() and row[key] is not None:
-                                    meta[key] = row[key]
-                            embedding = vectors._embedding(json.loads(row["embedding"])) if row["embedding"] else None
-                            converted.append((row["id"], row["text"], meta, embedding))
-                        values = [(r[0], r[1], json.dumps(r[2], ensure_ascii=False, sort_keys=True), r[3]) for r in converted]
-                    else:
-                        values = [tuple(row[c] for c in columns) for row in rows]
+                    rows = source.execute(f'SELECT * FROM "{table}" ORDER BY {order}')
                     names = sql.SQL(",").join(map(sql.Identifier, columns))
                     placeholders = sql.SQL(",").join(sql.SQL("%s::jsonb" if c == "metadata" and table == "vectors" else "%s::vector" if c == "embedding" and table == "vectors" else "%s") for c in columns)
+                    expected, actual = hashlib.sha256(), hashlib.sha256()
+                    source_count, target_count = 0, 0
                     with target.cursor() as cursor:
-                        cursor.executemany(sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(sql.Identifier(table), names, placeholders), values)
-                    imported = target.execute(sql.SQL("SELECT {} FROM {} ORDER BY " + order).format(names, sql.Identifier(table))).fetchall()
-                    if table == "vectors":
-                        # pgvector stores float32; validate with float32 normalization.
-                        import struct
-                        def canonical(items):
-                            for ident, text, meta, emb in items:
-                                meta = json.loads(meta) if isinstance(meta, str) else meta
-                                emb = json.loads(emb) if isinstance(emb, str) else emb
-                                yield (ident, text, json.dumps(meta, ensure_ascii=False, sort_keys=True),
-                                       [struct.unpack("f", struct.pack("f", float(x)))[0] for x in emb] if emb else None)
-                        expected, actual = digest(canonical(values)), digest(canonical(imported))
-                    else:
-                        expected, actual = digest(values), digest(imported)
-                    if len(imported) != len(values) or expected != actual:
+                        while batch := rows.fetchmany(500):
+                            values = [vector_values(row, dimensions) if table == "vectors" else tuple(row[c] for c in columns) for row in batch]
+                            cursor.executemany(sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(sql.Identifier(table), names, placeholders), values)
+                            update_checksum(expected, canonical_vectors(values) if table == "vectors" else values)
+                            source_count += len(values)
+                    with target.cursor(name="verify_" + table) as imported:
+                        imported.execute(sql.SQL("SELECT {} FROM {} ORDER BY " + order).format(names, sql.Identifier(table)))
+                        while batch := imported.fetchmany(500):
+                            update_checksum(actual, canonical_vectors(batch) if table == "vectors" else batch)
+                            target_count += len(batch)
+                    if target_count != source_count or expected.digest() != actual.digest():
                         raise ValueError("Target verification failed; import transaction rolled back")
-                    checksums[table] = actual
+                    checksums[table] = actual.hexdigest()
             for table in ("chat_history", "pending_replies"):
                 target.execute(sql.SQL("SELECT setval(pg_get_serial_sequence(%s,'id'), COALESCE(MAX(id),1), MAX(id) IS NOT NULL) FROM {}").format(sql.Identifier(table)), (table,))
         return {"dry_run": False, "source_counts": counts, "verified_checksums": checksums}

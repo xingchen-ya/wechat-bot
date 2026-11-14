@@ -6,6 +6,15 @@ import threading
 from .vector_memory import _rank_keyword_candidates
 
 
+def serialize_embedding(values, dimensions):
+    if values is None:
+        return None
+    values = [float(x) for x in values]
+    if len(values) != dimensions or not all(math.isfinite(x) for x in values) or not any(values):
+        raise ValueError("Embedding dimension, finiteness or norm is invalid")
+    return json.dumps(values)
+
+
 class PostgresVectorMemory:
     def __init__(self, url, dimensions=1536):
         import psycopg
@@ -34,12 +43,7 @@ class PostgresVectorMemory:
         return not self.conn.closed
 
     def _embedding(self, values):
-        if values is None:
-            return None
-        values = [float(x) for x in values]
-        if len(values) != self.dimensions or not all(math.isfinite(x) for x in values) or not any(values):
-            raise ValueError("Embedding dimension, finiteness or norm is invalid")
-        return json.dumps(values)
+        return serialize_embedding(values, self.dimensions)
 
     def add_text(self, text, metadata, id, embedding=None):
         values = (str(id), str(text), json.dumps(metadata or {}, ensure_ascii=False), self._embedding(embedding))

@@ -13,7 +13,7 @@ from backend.core.factory import (
 )
 from backend.core.memory import MemoryManager
 from backend.core.vector_memory import VectorMemory
-from backend.core.storage import create_memory, create_vectors
+from backend.core.storage import create_memory, create_vectors, pin_restart_settings
 from backend.shared_config import get_app_config_path
 from backend.utils.common import as_float, get_file_mtime
 
@@ -304,7 +304,7 @@ class GrowthTaskManager:
     def _apply_snapshot(self, config: Dict[str, Any]) -> None:
         self.config = dict(config or {})
         self.api_cfg = dict(self.config.get("api") or {})
-        self.bot_cfg = dict(self.config.get("bot") or {})
+        self.bot_cfg = pin_restart_settings(self.bot_manager, self.config.get("bot") or {})
         self.agent_cfg = dict(self.config.get("agent") or {})
         self.services_cfg = dict(self.config.get("services") or {"growth_tasks_enabled": False})
 
@@ -320,7 +320,7 @@ class GrowthTaskManager:
                 await maybe_result
 
         if self._vector_memory_requested():
-            self.vector_memory = create_vectors(self.bot_cfg)
+            self.vector_memory = await asyncio.to_thread(create_vectors, self.bot_cfg)
             self.export_rag = ExportChatRAG(self.vector_memory)
             self.export_rag.update_config(self.bot_cfg)
         else:
@@ -399,6 +399,9 @@ class GrowthTaskManager:
         if self.memory and hasattr(self.memory, "close"):
             await self.memory.close()
         self.memory = None
+        close_vectors = getattr(self.vector_memory, "close", None)
+        if callable(close_vectors):
+            await asyncio.to_thread(close_vectors)
         self.vector_memory = None
         self.export_rag = None
 

@@ -144,12 +144,12 @@ class BotManager:
     def get_memory_manager(self):
         """获取或初始化共享记忆管理器"""
         if self.memory_manager is None:
-            from backend.core.storage import create_memory
+            from backend.core.storage import create_memory, pin_restart_settings
 
             bot_cfg = self.config_service.get_snapshot(
                 config_path=self.config_path
             ).bot
-            self.memory_manager = create_memory(bot_cfg)
+            self.memory_manager = create_memory(pin_restart_settings(self, bot_cfg))
         return self.memory_manager
 
     async def start(self, config_path: Optional[str] = None) -> Dict[str, Any]:

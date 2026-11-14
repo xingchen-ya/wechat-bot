@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 from .core.export_rag import ExportChatRAG
 from .core.memory import MemoryManager
 from .core.vector_memory import VectorMemory
-from .core.storage import create_memory, create_vectors
+from .core.storage import create_memory, create_vectors, pin_restart_settings
 from .core.bot_control import (
     should_respond,
     get_bot_state,
@@ -329,7 +329,7 @@ class WeChatBot:
                 await maybe_result
         await self.refresh_pending_reply_stats(notify=False)
 
-        self._ensure_vector_memory()
+        await self._ensure_vector_memory()
         
         # 初始化 AI 客户端
         await self.bot_manager.update_startup_state(
@@ -420,7 +420,7 @@ class WeChatBot:
         return self.wx
 
     def _apply_config(self) -> None:
-        self.bot_cfg = self.config.get("bot", {})
+        self.bot_cfg = pin_restart_settings(self.bot_manager, self.config.get("bot", {}))
         self.api_cfg = self.config.get("api", {})
         self.agent_cfg = self.config.get("agent", {})
         self.reply_policy_cfg = normalize_reply_policy(self.bot_cfg.get("reply_policy"))
@@ -451,7 +451,7 @@ class WeChatBot:
             self.export_rag.update_config(self.bot_cfg)
         self._sync_ai_runtime_dependencies()
 
-    def _ensure_vector_memory(self) -> None:
+    async def _ensure_vector_memory(self) -> None:
         if not self._vector_memory_requested():
             if self.export_rag_sync_task and not self.export_rag_sync_task.done():
                 self.export_rag_sync_task.cancel()
@@ -460,7 +460,7 @@ class WeChatBot:
             return
         if self.vector_memory is None:
             try:
-                self.vector_memory = create_vectors(self.bot_cfg)
+                self.vector_memory = await asyncio.to_thread(create_vectors, self.bot_cfg)
                 logging.info("向量记忆模块已启用")
             except Exception as exc:
                 logging.warning("向量记忆模块初始化失败: %s", exc)
@@ -528,6 +528,16 @@ class WeChatBot:
             return
 
         logging.info("机器人主循环启动")
+        self.scheduled_sender = None
+        self.scheduled_sender_task = None
+        if self.bot_cfg.get("scheduled_messages_enabled", False):
+            from .core.scheduled_messages import create_sender
+            try:
+                self.scheduled_sender = await create_sender(lambda: self.bot_cfg, self.send_text_message)
+            except BaseException:
+                await self.shutdown()
+                raise
+            self.scheduled_sender_task = asyncio.create_task(self.scheduled_sender.run())
         
         # 主循环变量
         poll_interval_min = as_float(self.bot_cfg.get("poll_interval_min_sec", 0.05), 0.05)
@@ -680,6 +690,14 @@ class WeChatBot:
 
     async def shutdown(self) -> None:
         """优雅关闭，清理所有资源"""
+        sender_task = getattr(self, "scheduled_sender_task", None)
+        if sender_task is not None:
+            sender_task.cancel()
+            await asyncio.gather(sender_task, return_exceptions=True)
+        sender = getattr(self, "scheduled_sender", None)
+        if sender is not None:
+            await sender.close()
+            self.scheduled_sender = None
         if self.pending_tasks:
             for task in self.pending_tasks:
                 task.cancel()
@@ -694,6 +712,11 @@ class WeChatBot:
 
         if self.memory:
             await self.memory.close()
+
+        close_vectors = getattr(self.vector_memory, "close", None)
+        if callable(close_vectors):
+            await asyncio.to_thread(close_vectors)
+        self.vector_memory = None
 
         if self.config_reload_watcher:
             self.config_reload_watcher.stop()
@@ -747,7 +770,7 @@ class WeChatBot:
             self.config = new_config
             self._apply_config()
             self._ensure_config_reload_watcher()
-            self._ensure_vector_memory()
+            await self._ensure_vector_memory()
             
             # 重新检查 AI 客户端
             if self.bot_cfg.get("reload_ai_client_on_change", True):
@@ -816,7 +839,7 @@ class WeChatBot:
         resolved_changed_paths = list(changed_paths or diff_config_paths(previous_config, self.config))
         self._apply_config()
         self._ensure_config_reload_watcher()
-        self._ensure_vector_memory()
+        await self._ensure_vector_memory()
         transport_reconnect_required = self._transport_reconnect_required(resolved_changed_paths)
         new_signature = compute_api_signature(
             {"api": self.api_cfg, "agent": self.agent_cfg}
