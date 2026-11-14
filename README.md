@@ -52,6 +52,9 @@ node scripts/run-interview-demo.mjs --skip-eval --json
 
 ## Documentation
 
+- [PostgreSQL/pgvector 迁移、可选 LangChain RAG、Redis Streams 与持久化定时发送](docs/INFRASTRUCTURE.md)
+- 新能力均需显式配置；默认继续使用 SQLite 和直连聊天。定时发送默认关闭，仅在 Windows 机器人中运行；Linux Compose 不连接微信。
+
 - [API 契约与治理接口](docs/api.md)
 - [面试讲解手册](docs/interview-playbook.md)
 - [TODO 与成熟化路线](docs/TODO.md)

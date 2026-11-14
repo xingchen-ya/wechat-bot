@@ -609,3 +609,15 @@
 - `README.md`
 - `docs/USER_GUIDE.md`
 - `docs/HIGHLIGHTS.md`
+
+## 可选基础设施链路
+
+data/app_config.json → storage.create_memory/create_vectors → SQLite 或 PostgreSQL/pgvector。
+BotManager 将存储配置固定到当前进程，配置审计提示完整重启，避免热重载时混用两代存储。
+RetrievalService → native 或 LangChain BaseRetriever → 同一个向量存储接口，保留
+联系人/来源过滤、重排和引用生成；直连模型调用不经 LangChain。
+
+定时发送为 API 持久化任务 → PostgreSQL due 扫描 → Redis Streams(task_id) → 消费组 →
+PostgreSQL 原子领取 → WeChatBot.send_text_message → 持久化结果 → XACK/XDEL。
+仅 Windows 机器人持有真实发送出口，Web API 只创建/查询/取消任务。详见
+[部署、故障语义与验证](INFRASTRUCTURE.md)。

@@ -64,14 +64,14 @@
 - 平台：Windows 10 / 11
 - 本地运行要求：Python `3.9+`、Node.js `16+`
 - CI 基线：Python `3.10`、Node.js `20`
-- 关键运行依赖：`Quart`、`httpx`、`aiosqlite`、`LangChain`、`LangGraph`、`ChromaDB`、`Electron`、`electron-builder`
+- 关键运行依赖：`Quart`、`httpx`、`aiosqlite`、`Electron`、`electron-builder`；可选基础设施依赖为 `psycopg`、`redis`、`langchain-core`（仅检索适配）。
 - 当前官方支持的微信版本：`3.9.12.51`
 - 默认传输后端：`wcferry`
 
 ## 5. 目录职责与边界
 
 - `backend/`
-  - Python 后端；包含 bot 主循环、Quart API、LangGraph runtime、记忆、RAG、回复策略、备份恢复、模型认证中心。
+  - Python 后端；包含 bot 主循环、Quart API、直连聊天 runtime、记忆、RAG、回复策略、备份恢复、模型认证中心。
 - `backend/transports/`
   - 传输层抽象与实现；新传输能力必须遵守 `BaseTransport` 契约，不要把 bot 直接耦合到具体实现。
 - `src/main/`

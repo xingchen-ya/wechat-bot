@@ -392,3 +392,10 @@ Provider 分层策略也更清晰：
 - 本文作为项目亮点入口，适合展示差异化定位、产品化能力和长期运行治理。
 - 技术难题与 STAR 复盘优先引用 `docs/STAR_REPO_STAR.md`，避免在亮点文档里重复展开面试案例。
 - 简历中可写的指标以本文和 `STAR_REPO_STAR.md` 的证据索引为准；回复成功率、平均响应时延、Star/Fork 等真实运营指标仍需补充。
+
+## 可选存储与任务扩展
+
+新增 PostgreSQL/pgvector 后端、离线只读源迁移、联系人手工风格设置、可选 LangChain
+检索适配与 Redis Streams 定时发送。直连对话仍由既有运行时负责。任务以 PostgreSQL
+状态机防止重复领取，发送结果不确定时不自动重试。部署步骤、限制和回滚见
+[INFRASTRUCTURE.md](INFRASTRUCTURE.md)；这些能力不代表真实微信账号已验收。

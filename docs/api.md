@@ -593,3 +593,8 @@
 - [NavigationView - Windows apps](https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/navigationview)
 - [OpenAI Agents SDK Guardrails](https://openai.github.io/openai-agents-python/guardrails/)
 - [OpenAI Agents SDK Tracing](https://openai.github.io/openai-agents-python/tracing/)
+## 可选画像风格与持久化定时任务
+
+新增 `POST /api/contact_style` 及 `GET/POST/DELETE /api/scheduled_messages`，沿用本机限制和
+API token。任务创建只入库；Windows 机器人启用后才执行发送。请求结构、配置、状态机、
+取消边界及重复请求语义见 [INFRASTRUCTURE.md](INFRASTRUCTURE.md)。

@@ -1,7 +1,5 @@
-import asyncio
 import os
 from datetime import datetime
-from types import SimpleNamespace
 from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
