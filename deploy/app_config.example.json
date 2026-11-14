@@ -1,0 +1,11 @@
+{
+  "bot": {
+    "storage_backend": "postgres",
+    "database_url_env": "WECHAT_BOT_DATABASE_URL",
+    "embedding_dimensions": 1536,
+    "rag_retriever_backend": "native",
+    "scheduled_messages_enabled": false,
+    "redis_url_env": "WECHAT_BOT_REDIS_URL",
+    "scheduled_message_targets": []
+  }
+}

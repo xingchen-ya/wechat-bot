@@ -83,6 +83,19 @@ class RetrievalService:
         self.citation_service = citation_service or CitationService()
         self.query_rewrite_service = QueryRewriteService()
 
+    async def _search_vectors(self, store, query, *, filters, query_embedding):
+        if self.runtime.bot_cfg.get("rag_retriever_backend", "native") == "langchain":
+            from .langchain_rag import retrieve
+            return await asyncio.to_thread(
+                retrieve, store, query, filters=filters,
+                k=self.runtime.retriever_fetch_k, query_embedding=query_embedding,
+            )
+        return await asyncio.to_thread(
+            store.search, query=query if not query_embedding else None,
+            n_results=self.runtime.retriever_fetch_k, filter_meta=filters,
+            query_embedding=query_embedding,
+        )
+
     async def retrieve(
         self,
         *,
@@ -212,13 +225,7 @@ class RetrievalService:
         if not query:
             return []
         filter_meta = {"chat_id": chat_id, "source": "runtime_chat"}
-        results = await asyncio.to_thread(
-            vector_memory.search,
-            query=query if not query_embedding else None,
-            n_results=self.runtime.retriever_fetch_k,
-            filter_meta=filter_meta,
-            query_embedding=query_embedding,
-        )
+        results = await self._search_vectors(vector_memory, query, filters=filter_meta, query_embedding=query_embedding)
         retrieval_counts["runtime_vector_hit_count"] = len(results or [])
         if hybrid_enabled:
             keyword_results = await self._retrieve_keyword_candidates(
@@ -257,13 +264,7 @@ class RetrievalService:
         if not query:
             return []
         filter_meta = {"source": KNOWLEDGE_SOURCE}
-        results = await asyncio.to_thread(
-            vector_memory.search,
-            query=query if not query_embedding else None,
-            n_results=self.runtime.retriever_fetch_k,
-            filter_meta=filter_meta,
-            query_embedding=query_embedding,
-        )
+        results = await self._search_vectors(vector_memory, query, filters=filter_meta, query_embedding=query_embedding)
         retrieval_counts["knowledge_vector_hit_count"] = len(results or [])
         if hybrid_enabled:
             keyword_results = await self._retrieve_keyword_candidates(

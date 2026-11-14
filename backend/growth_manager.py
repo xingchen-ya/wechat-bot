@@ -13,6 +13,7 @@ from backend.core.factory import (
 )
 from backend.core.memory import MemoryManager
 from backend.core.vector_memory import VectorMemory
+from backend.core.storage import create_memory, create_vectors, pin_restart_settings
 from backend.shared_config import get_app_config_path
 from backend.utils.common import as_float, get_file_mtime
 
@@ -303,7 +304,7 @@ class GrowthTaskManager:
     def _apply_snapshot(self, config: Dict[str, Any]) -> None:
         self.config = dict(config or {})
         self.api_cfg = dict(self.config.get("api") or {})
-        self.bot_cfg = dict(self.config.get("bot") or {})
+        self.bot_cfg = pin_restart_settings(self.bot_manager, self.config.get("bot") or {})
         self.agent_cfg = dict(self.config.get("agent") or {})
         self.services_cfg = dict(self.config.get("services") or {"growth_tasks_enabled": False})
 
@@ -311,16 +312,7 @@ class GrowthTaskManager:
         self._apply_snapshot(config)
         await self._shutdown_components()
 
-        db_path = (
-            self.bot_cfg.get("memory_db_path")
-            or self.bot_cfg.get("sqlite_db_path")
-            or "data/chat_memory.db"
-        )
-        self.memory = MemoryManager(
-            db_path,
-            ttl_sec=self.bot_cfg.get("memory_ttl_sec"),
-            cleanup_interval_sec=float(self.bot_cfg.get("memory_cleanup_interval_sec", 0.0) or 0.0),
-        )
+        self.memory = create_memory(self.bot_cfg)
         initialize_memory = getattr(self.memory, "initialize", None)
         if callable(initialize_memory):
             maybe_result = initialize_memory()
@@ -328,7 +320,7 @@ class GrowthTaskManager:
                 await maybe_result
 
         if self._vector_memory_requested():
-            self.vector_memory = VectorMemory()
+            self.vector_memory = await asyncio.to_thread(create_vectors, self.bot_cfg)
             self.export_rag = ExportChatRAG(self.vector_memory)
             self.export_rag.update_config(self.bot_cfg)
         else:
@@ -407,6 +399,9 @@ class GrowthTaskManager:
         if self.memory and hasattr(self.memory, "close"):
             await self.memory.close()
         self.memory = None
+        close_vectors = getattr(self.vector_memory, "close", None)
+        if callable(close_vectors):
+            await asyncio.to_thread(close_vectors)
         self.vector_memory = None
         self.export_rag = None
 

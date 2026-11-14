@@ -43,6 +43,8 @@ class DataControlService:
         allow_default_all: bool = True,
     ) -> Dict[str, Any]:
         normalized_scopes = self._normalize_scopes(scopes, allow_default_all=allow_default_all)
+        if self._bot_config.get("storage_backend") == "postgres" and set(normalized_scopes) & {"memory", "export_rag"}:
+            raise ValueError("PostgreSQL memory/export data requires an explicit database maintenance procedure")
         targets: List[Dict[str, Any]] = []
         unsupported_targets: List[Dict[str, Any]] = []
         total_bytes = 0

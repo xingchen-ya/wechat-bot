@@ -1,0 +1,5 @@
+# Optional deployment extras; SQLite/direct chat remains dependency-light.
+-r requirements-container.txt
+psycopg[binary]>=3.2,<4
+redis>=5,<7
+langchain-core>=0.3.80,<0.4

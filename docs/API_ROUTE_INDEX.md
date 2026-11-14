@@ -10,25 +10,26 @@
 ```
 
 - Source: `backend/api.py`
-- Route count: `60`
+- Route count: `62`
 
 | Methods | Path | Handler | Source |
 | --- | --- | --- | --- |
-| `GET` | `/api/backups` | `list_backups` | `backend/api.py:1701` |
-| `POST` | `/api/backups` | `create_backup` | `backend/api.py:1713` |
-| `POST` | `/api/backups/cleanup` | `cleanup_backups` | `backend/api.py:1758` |
-| `POST` | `/api/backups/restore` | `restore_backup` | `backend/api.py:1791` |
-| `GET` | `/api/config` | `get_config` | `backend/api.py:2240` |
-| `POST` | `/api/config` | `save_config` | `backend/api.py:2281` |
-| `GET` | `/api/config/audit` | `get_config_audit` | `backend/api.py:2252` |
+| `GET` | `/api/backups` | `list_backups` | `backend/api.py:1754` |
+| `POST` | `/api/backups` | `create_backup` | `backend/api.py:1766` |
+| `POST` | `/api/backups/cleanup` | `cleanup_backups` | `backend/api.py:1811` |
+| `POST` | `/api/backups/restore` | `restore_backup` | `backend/api.py:1844` |
+| `GET` | `/api/config` | `get_config` | `backend/api.py:2293` |
+| `POST` | `/api/config` | `save_config` | `backend/api.py:2334` |
+| `GET` | `/api/config/audit` | `get_config_audit` | `backend/api.py:2305` |
 | `GET` | `/api/contact_profile` | `get_contact_profile` | `backend/api.py:1430` |
-| `POST` | `/api/contact_prompt` | `save_contact_prompt` | `backend/api.py:1452` |
-| `GET` | `/api/costs/review_queue_export` | `export_cost_review_queue` | `backend/api.py:2161` |
-| `GET` | `/api/costs/session_details` | `get_cost_session_details` | `backend/api.py:2141` |
-| `GET` | `/api/costs/sessions` | `get_cost_sessions` | `backend/api.py:2125` |
-| `GET` | `/api/costs/summary` | `get_costs_summary` | `backend/api.py:2109` |
-| `GET` | `/api/data_controls` | `get_data_controls` | `backend/api.py:1985` |
-| `POST` | `/api/data_controls/clear` | `clear_data_controls` | `backend/api.py:2003` |
+| `POST` | `/api/contact_prompt` | `save_contact_prompt` | `backend/api.py:1505` |
+| `POST` | `/api/contact_style` | `save_contact_style` | `backend/api.py:1452` |
+| `GET` | `/api/costs/review_queue_export` | `export_cost_review_queue` | `backend/api.py:2214` |
+| `GET` | `/api/costs/session_details` | `get_cost_session_details` | `backend/api.py:2194` |
+| `GET` | `/api/costs/sessions` | `get_cost_sessions` | `backend/api.py:2178` |
+| `GET` | `/api/costs/summary` | `get_costs_summary` | `backend/api.py:2162` |
+| `GET` | `/api/data_controls` | `get_data_controls` | `backend/api.py:2038` |
+| `POST` | `/api/data_controls/clear` | `clear_data_controls` | `backend/api.py:2056` |
 | `GET` | `/api/events` | `sse_events` | `backend/api.py:1174` |
 | `GET` | `/api/events_ticket` | `get_events_ticket` | `backend/api.py:1189` |
 | `POST` | `/api/growth/start` | `start_growth` | `backend/api.py:1211` |
@@ -38,35 +39,36 @@
 | `POST` | `/api/growth/tasks/<task_type>/pause` | `pause_growth_task` | `backend/api.py:1246` |
 | `POST` | `/api/growth/tasks/<task_type>/resume` | `resume_growth_task` | `backend/api.py:1253` |
 | `POST` | `/api/growth/tasks/<task_type>/run` | `run_growth_task` | `backend/api.py:1239` |
-| `GET` | `/api/logs` | `get_logs` | `backend/api.py:2470` |
-| `POST` | `/api/logs/clear` | `clear_logs` | `backend/api.py:2514` |
-| `POST` | `/api/message_feedback` | `save_message_feedback` | `backend/api.py:1484` |
+| `GET` | `/api/logs` | `get_logs` | `backend/api.py:2523` |
+| `POST` | `/api/logs/clear` | `clear_logs` | `backend/api.py:2567` |
+| `POST` | `/api/message_feedback` | `save_message_feedback` | `backend/api.py:1537` |
 | `GET` | `/api/messages` | `get_messages` | `backend/api.py:1395` |
 | `GET` | `/api/metrics` | `get_metrics` | `backend/api.py:1160` |
-| `POST` | `/api/model_auth/action` | `post_model_auth_action` | `backend/api.py:2199` |
-| `GET` | `/api/model_auth/overview` | `get_model_auth_overview` | `backend/api.py:2190` |
-| `GET` | `/api/model_catalog` | `get_model_catalog_api` | `backend/api.py:2180` |
-| `GET` | `/api/ollama/models` | `get_ollama_models` | `backend/api.py:2214` |
+| `POST` | `/api/model_auth/action` | `post_model_auth_action` | `backend/api.py:2252` |
+| `GET` | `/api/model_auth/overview` | `get_model_auth_overview` | `backend/api.py:2243` |
+| `GET` | `/api/model_catalog` | `get_model_catalog_api` | `backend/api.py:2233` |
+| `GET` | `/api/ollama/models` | `get_ollama_models` | `backend/api.py:2267` |
 | `POST` | `/api/pause` | `pause_bot` | `backend/api.py:1365` |
-| `GET` | `/api/pending_replies` | `list_pending_replies` | `backend/api.py:1620` |
-| `POST` | `/api/pending_replies/<int:pending_id>/approve` | `approve_pending_reply` | `backend/api.py:1650` |
-| `POST` | `/api/pending_replies/<int:pending_id>/reject` | `reject_pending_reply` | `backend/api.py:1671` |
+| `GET` | `/api/pending_replies` | `list_pending_replies` | `backend/api.py:1673` |
+| `POST` | `/api/pending_replies/<int:pending_id>/approve` | `approve_pending_reply` | `backend/api.py:1703` |
+| `POST` | `/api/pending_replies/<int:pending_id>/reject` | `reject_pending_reply` | `backend/api.py:1724` |
 | `GET` | `/api/ping` | `ping` | `backend/api.py:1138` |
-| `POST` | `/api/preview_prompt` | `preview_prompt` | `backend/api.py:2389` |
-| `GET` | `/api/pricing` | `get_pricing` | `backend/api.py:2083` |
-| `POST` | `/api/pricing/refresh` | `refresh_pricing` | `backend/api.py:2094` |
+| `POST` | `/api/preview_prompt` | `preview_prompt` | `backend/api.py:2442` |
+| `GET` | `/api/pricing` | `get_pricing` | `backend/api.py:2136` |
+| `POST` | `/api/pricing/refresh` | `refresh_pricing` | `backend/api.py:2147` |
 | `GET` | `/api/readiness` | `get_readiness` | `backend/api.py:1144` |
 | `POST` | `/api/recover` | `recover_bot` | `backend/api.py:1388` |
-| `GET` | `/api/reply_policies` | `get_reply_policies` | `backend/api.py:1548` |
-| `POST` | `/api/reply_policies` | `save_reply_policies` | `backend/api.py:1569` |
+| `GET` | `/api/reply_policies` | `get_reply_policies` | `backend/api.py:1601` |
+| `POST` | `/api/reply_policies` | `save_reply_policies` | `backend/api.py:1622` |
 | `POST` | `/api/restart` | `restart_bot` | `backend/api.py:1381` |
 | `POST` | `/api/resume` | `resume_bot` | `backend/api.py:1374` |
-| `POST` | `/api/send` | `send_message` | `backend/api.py:1527` |
+| `DELETE, GET, POST` | `/api/scheduled_messages` | `scheduled_messages` | `backend/api.py:1469` |
+| `POST` | `/api/send` | `send_message` | `backend/api.py:1580` |
 | `POST` | `/api/start` | `start_bot` | `backend/api.py:1197` |
 | `GET` | `/api/status` | `get_status` | `backend/api.py:1132` |
 | `POST` | `/api/stop` | `stop_bot` | `backend/api.py:1204` |
-| `POST` | `/api/test_connection` | `test_connection` | `backend/api.py:2363` |
-| `GET` | `/api/usage` | `get_usage` | `backend/api.py:2072` |
+| `POST` | `/api/test_connection` | `test_connection` | `backend/api.py:2416` |
+| `GET` | `/api/usage` | `get_usage` | `backend/api.py:2125` |
 | `POST` | `/api/wechat_export/apply` | `wechat_export_apply` | `backend/api.py:1347` |
 | `POST` | `/api/wechat_export/apply/preview` | `wechat_export_preview_apply` | `backend/api.py:1330` |
 | `POST` | `/api/wechat_export/contacts` | `wechat_export_contacts` | `backend/api.py:1298` |

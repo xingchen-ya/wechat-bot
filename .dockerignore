@@ -6,6 +6,17 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+work/
+.env
+.env.*
+!.env.example
+data/app_config.json
+data/config_override.json
+data/api_keys.py
+data/provider_credentials.json
+data/*.db
+data/*.db-*
+data/chat_history.jsonl
 .coverage
 coverage/
 node_modules/

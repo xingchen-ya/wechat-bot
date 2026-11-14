@@ -95,6 +95,13 @@ class BotConfig(BaseModel):
     voice_transcription_timeout_sec: float = 30.0
     
     # Memory
+    storage_backend: Literal["sqlite", "postgres"] = "sqlite"
+    database_url_env: str = "WECHAT_BOT_DATABASE_URL"
+    embedding_dimensions: int = Field(default=1536, ge=1, le=16000)
+    rag_retriever_backend: Literal["native", "langchain"] = "native"
+    scheduled_messages_enabled: bool = False
+    redis_url_env: str = "WECHAT_BOT_REDIS_URL"
+    scheduled_message_targets: List[str] = Field(default_factory=list)
     memory_db_path: str = "data/chat_memory.db"
     memory_context_limit: int = 12
     memory_ttl_sec: Optional[float] = None

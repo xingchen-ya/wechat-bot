@@ -144,23 +144,12 @@ class BotManager:
     def get_memory_manager(self):
         """获取或初始化共享记忆管理器"""
         if self.memory_manager is None:
-            from backend.core.memory import MemoryManager
+            from backend.core.storage import create_memory, pin_restart_settings
 
             bot_cfg = self.config_service.get_snapshot(
                 config_path=self.config_path
             ).bot
-            db_path = (
-                bot_cfg.get("memory_db_path")
-                or bot_cfg.get("sqlite_db_path")
-                or "data/chat_memory.db"
-            )
-            self.memory_manager = MemoryManager(
-                db_path,
-                ttl_sec=bot_cfg.get("memory_ttl_sec"),
-                cleanup_interval_sec=float(
-                    bot_cfg.get("memory_cleanup_interval_sec", 0.0) or 0.0
-                ),
-            )
+            self.memory_manager = create_memory(pin_restart_settings(self, bot_cfg))
         return self.memory_manager
 
     async def start(self, config_path: Optional[str] = None) -> Dict[str, Any]:
