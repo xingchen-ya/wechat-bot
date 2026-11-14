@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Set
 from .core.export_rag import ExportChatRAG
 from .core.memory import MemoryManager
 from .core.vector_memory import VectorMemory
+from .core.storage import create_memory, create_vectors
 from .core.bot_control import (
     should_respond,
     get_bot_state,
@@ -320,8 +321,7 @@ class WeChatBot:
             active=True,
         )
         if self.memory is None:
-            db_path = self.bot_cfg.get("memory_db_path") or self.bot_cfg.get("sqlite_db_path") or "data/chat_memory.db"
-            self.memory = MemoryManager(db_path)
+            self.memory = create_memory(self.bot_cfg)
         initialize_memory = getattr(self.memory, "initialize", None)
         if callable(initialize_memory):
             maybe_result = initialize_memory()
@@ -460,7 +460,7 @@ class WeChatBot:
             return
         if self.vector_memory is None:
             try:
-                self.vector_memory = VectorMemory()
+                self.vector_memory = create_vectors(self.bot_cfg)
                 logging.info("向量记忆模块已启用")
             except Exception as exc:
                 logging.warning("向量记忆模块初始化失败: %s", exc)

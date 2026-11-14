@@ -168,6 +168,8 @@ class WorkspaceBackupService:
         }
 
     def create_backup(self, mode: str, *, label: str = "") -> Dict[str, Any]:
+        if self._bot_config.get("storage_backend") == "postgres":
+            raise ValueError("PostgreSQL requires pg_dump plus a separate local data backup; file backup is disabled")
         normalized_mode = str(mode or "").strip().lower()
         if normalized_mode not in {"quick", "full"}:
             raise ValueError("mode must be quick or full")
@@ -224,6 +226,8 @@ class WorkspaceBackupService:
         return candidate, manifest
 
     def build_restore_plan(self, backup_ref: str, *, allow_legacy_unverified: bool = False) -> Dict[str, Any]:
+        if self._bot_config.get("storage_backend") == "postgres":
+            raise ValueError("PostgreSQL requires offline pg_restore; SQLite restore is disabled")
         verification = self.verify_backup(
             backup_ref,
             allow_legacy_unverified=allow_legacy_unverified,
